@@ -63,6 +63,23 @@ pacientes = [{
   email: 'alan@gmail.com',
   plano_de_saude: 'BRB' ,
   data_nasc: '19/02/1474'
+},
+{
+  id_enfermaria: '1',
+  id_paciente: '2',
+  nome: 'Marta',
+  endereco: {
+    logradouro: 'Avenida g bloco 2',
+    numero: '10',
+    cep: '5478878' ,
+    cidade: 'Brasilia',
+    estado: 'DF'
+  },
+  sexo: 'F',
+  telefone: '762763287',
+  email: 'marta@glulmail.com',
+  plano_de_saude: 'BB' ,
+  data_nasc: '21/03/1978'
 }]
 
 enfermeiros = [{
@@ -187,15 +204,25 @@ medicos = [{
   email: 'medico2@gmail.com'
 }]
 
-exame = {
-  id_exame: '',
-  descricao: '',
-  restricao: '',
-  id_paciente: '',
-  crm: '',
-  id_laboratorio: '',
-  status: ''
+exames = [{
+  id_exame: '1',
+  descricao: 'Exame de sangue',
+  restricao: 'Nenhuma',
+  id_paciente: '1',
+  crm: '1425147',
+  id_laboratorio: '1',
+  status: 'Pronto'
+},
+{
+  id_exame: '1',
+  descricao: 'Exame de urina',
+  restricao: 'Nenhuma',
+  id_paciente: '1',
+  crm: '1425147',
+  id_laboratorio: '2',
+  status: 'Em andamento'
 }
+]
 
 consulta = {
   id_consulta: '',
@@ -251,6 +278,58 @@ convenios_hosp = {
   }]
 }
 
+crmpac = {
+  crm: '1425147',
+  pacientes: [
+    {
+      id_paciente: '1',
+      nome: 'Alan',
+      endereco: {
+        logradouro: 'Avenida g bloco 3',
+        numero: '2',
+        cep: '4584562' ,
+        cidade: 'Brasilia',
+        estado: 'DF'
+      },
+      sexo: 'M'
+    },
+    {
+      id_paciente: '2',
+      nome: 'Marta',
+      endereco: {
+        logradouro: 'Avenida g bloco 2',
+        numero: '10',
+        cep: '5478878' ,
+        cidade: 'Brasilia',
+        estado: 'DF'
+      },
+      sexo: 'F'
+    }
+  ]
+}
+
+exam = {
+  id_paciente: '1',
+  register: [
+    {
+      id_exame: '1',
+      descricao: 'Exame de sangue',
+      restricao: 'Nenhuma',
+      crm: '1425147',
+      id_laboratorio: '1',
+      status: 'Pronto'
+    },
+    {
+      id_exame: '1',
+      descricao: 'Exame de urina',
+      restricao: 'Nenhuma',
+      crm: '1425147',
+      id_laboratorio: '2',
+      status: 'Em andamento'
+    }
+  ]
+}
+
 #creating buckets and store data
 hospital_bucket = client.bucket('Hospitais')
 hospitais.each do |hospital|
@@ -287,6 +366,20 @@ convenios.each do |convenio|
   convenio_riak.store
 end
 
+paciente_bucket = client.bucket('Pacientes')
+pacientes.each do |paciente|
+  paciente_riak = paciente_bucket.new(paciente[:id_paciente].to_s)
+  paciente_riak.data = paciente
+  paciente_riak.store
+end
+
+exame_bucket = client.bucket('Exames')
+exames.each do |exame|
+  exame_riak = exame_bucket.new(exame[:id_exame].to_s)
+  exame_riak.data = exame
+  exame_riak.store
+end
+
 #relation hospital and employee
 funcionarios_hospital_bucket = client.bucket('Funcionarios')
 fn = funcionarios_hospital_bucket.new(funcionarios_hospital[:id_hospital].to_s)
@@ -299,6 +392,7 @@ hospital[:funcionarios] = funcionarios_hospital_bucket.get(func).data
 puts "Relação de enfermeiros e médicos do hospital: "
 pp hospital
 puts ''
+
 #relation hospital and covenant
 convenios_hosp_bucket = client.bucket('ConvHosp')
 ch = convenios_hosp_bucket.new(convenios_hosp[:id_hospital].to_s)
@@ -312,14 +406,28 @@ puts "Relação de convênios do hospital: "
 pp convs
 puts ''
 
+#relation patient and medic
+crmpac_bucket = client.bucket('crmPac')
+pm = crmpac_bucket.new(crmpac[:crm].to_s)
+pm.data = crmpac
+pm.store
 
-=begin
-paciente_bucket = client.bucket('Pacientes')
-pacientes.each do |paciente|
-  paciente_riak = paciente_bucket.new(paciente[:id_paciente].to_s)
-  paciente_riak.data = paciente
-  paciente_riak.store
-end
+med = '1425147'
+meds = medico_bucket.get(med).data
+meds[:pacientes] = crmpac_bucket.get(med).data
+puts "Relação de pacientes por médico: "
+pp meds
+puts ''
 
+#relation exam and patient
+exam_bucket = client.bucket('Exams')
+ex = exam_bucket.new(exam[:id_paciente].to_s)
+ex.data = exam
+ex.store
 
-=end
+pac = '1'
+pacs = paciente_bucket.get(pac).data
+pacs[:exams] = exam_bucket.get(pac).data
+puts "Relação de exames do paciente 1: "
+pp pacs
+puts ''
